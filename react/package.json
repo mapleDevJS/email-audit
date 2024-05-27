@@ -9,6 +9,9 @@
     "validate": "tsc --noEmit --checkJs",
     "lint": "eslint src/components/**/*.tsx"
   },
+  "engines": {
+    "node": "20.13.1"
+  },
   "dependencies": {
     "lodash-es": "^4.17.21",
     "reactstrap": "^9.2.2",
