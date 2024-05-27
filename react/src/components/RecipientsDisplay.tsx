@@ -27,9 +27,6 @@ const formatRecipients = (recipients: Recipient[], truncationCount: number): str
     return concatenateNames(recipientsList) + (needTruncate ? EMAIL_SEPARATOR + MORE_INDICATOR : '');
 };
 
-// const hasExceededCellWidth = (cellWidth: number, recipientWidth: number, badgeWidth: number, numVisible: number): boolean =>
-//     recipientWidth + badgeWidth > cellWidth && numVisible > 1;
-
 type Widths = {
     cellWidth: number,
     recipientWidth: number,
