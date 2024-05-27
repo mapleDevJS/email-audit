@@ -33,3 +33,8 @@ pids
 # TypeScript #
 ##############
 *.ts-build-info
+
+# IDE #
+##############
+.idea
+.vscode
