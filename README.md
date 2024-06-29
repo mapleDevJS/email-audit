@@ -1,4 +1,4 @@
-# Email Audit
+# Email Audit [![Netlify Status](https://api.netlify.com/api/v1/badges/c45a1b80-7a0a-4dcf-9c95-dd287509049c/deploy-status)](https://app.netlify.com/sites/email-audit/deploys)
 
 Email Audit is a system used to audit all emails sent from within an organization. In the event of security incidents (such as leakage of sensitive information via emails), this system will be used by the organization's auditing department to retrieve and verify the emails of the concerning parties through its admin console.
 
