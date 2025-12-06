@@ -1,24 +1,40 @@
-import {useState, useCallback, useEffect} from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import debounce from 'lodash-es/debounce';
 
-const DELAY_BEFORE_TOOLTIP_VISIBLE_MS = 250;
+const useTooltip = (delay = 250) => {
+    const [isTooltipVisible, setIsTooltipVisible] = useState(false);
 
-const useTooltip = () => {
-    const [isTooltipVisible, setIsTooltipVisible] = useState<boolean>(false);
-    const displayTooltip
-        = useCallback(debounce(() => setIsTooltipVisible(true), DELAY_BEFORE_TOOLTIP_VISIBLE_MS), []);
+    // Store stable debounced function in a ref
+    const debouncedShowRef = useRef<
+        ReturnType<typeof debounce> | null
+    >(null);
+
+    // Create debouncing once
+    if (!debouncedShowRef.current) {
+        debouncedShowRef.current = debounce(
+            () => setIsTooltipVisible(true),
+            delay
+        );
+    }
+
+    const displayTooltip = useCallback(() => {
+        debouncedShowRef.current!.cancel();
+        debouncedShowRef.current!.call(undefined);
+    }, []);
+
     const removeTooltip = useCallback(() => {
-        displayTooltip.cancel();
-        if (isTooltipVisible) {
-            setIsTooltipVisible(false);
-        }
-    }, [displayTooltip, isTooltipVisible]);
+        debouncedShowRef.current!.cancel();
+        setIsTooltipVisible(false);
+    }, []);
+
+    // Cleanup on unmount
     useEffect(() => {
         return () => {
-            // clean up on unmount
-            displayTooltip.cancel();
+            debouncedShowRef.current?.cancel();
         };
-    }, [displayTooltip]);
-    return {isTooltipVisible, displayTooltip, removeTooltip};
-}
+    }, []);
+
+    return { isTooltipVisible, displayTooltip, removeTooltip };
+};
+
 export default useTooltip;

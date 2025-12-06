@@ -1,21 +1,31 @@
+import { FC, useMemo } from "react";
+
 export interface DateDisplayProps {
-  datetime: string
+    datetime: string;
 }
 
-export default function DateDisplay({ datetime }: DateDisplayProps) {
-  const datetimeObject = new Date(datetime)
-  const today = new Date()
+const DateDisplay: FC<DateDisplayProps> = ({ datetime }) => {
+    const formattedDate = useMemo(() => {
+        const dateObj = new Date(datetime);
 
-  const options: Intl.DateTimeFormatOptions = {
-    year:
-      datetimeObject.getFullYear() === today.getFullYear()
-        ? undefined
-        : '2-digit',
-    month: '2-digit',
-    day: '2-digit',
-  }
+        // Validate date
+        if (isNaN(dateObj.getTime())) {
+            return "Invalid Date";
+        }
 
-  const date = datetimeObject.toLocaleDateString('en-US', options)
+        const today = new Date();
+        const isCurrentYear = dateObj.getFullYear() === today.getFullYear();
 
-  return <span>{date}</span>
-}
+        const options: Intl.DateTimeFormatOptions = {
+            year: isCurrentYear ? undefined : "2-digit",
+            month: "2-digit",
+            day: "2-digit",
+        };
+
+        return dateObj.toLocaleDateString("en-US", options);
+    }, [datetime]);
+
+    return <span>{formattedDate}</span>;
+};
+
+export default DateDisplay;

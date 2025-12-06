@@ -1,112 +1,164 @@
-import {FC, ReactElement, useCallback, useEffect, useMemo, useRef, useState} from "react";
-import RecipientsBadge from "./RecipientsBadge.tsx";
-import {debounce} from 'lodash-es';
-import styled from 'styled-components';
-import RecipientsTooltip from "./RecipientsTooltip.tsx";
-import useTooltip from "../hooks/useTooltip.ts";
-import {Recipient} from "../types/Recipient";
+import {
+    FC,
+    ReactElement,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
+import styled from "styled-components";
+import { debounce } from "lodash-es";
 
+import RecipientsBadge from "./RecipientsBadge";
+import RecipientsTooltip from "./RecipientsTooltip";
+import useTooltip from "../hooks/useTooltip";
+
+// --------------------------------------
+// Styled Components
+// --------------------------------------
 const RecipientLayout = styled.span`
     display: flex;
     justify-content: space-between;
+    align-items: center;
 `;
 
-interface RecipientsDisplayProps {
-    recipients: Recipient[];
-}
-
-const EMAIL_SEPARATOR = ', '
-const MORE_INDICATOR = '...';
+// --------------------------------------
+// Constants
+// --------------------------------------
+const EMAIL_SEPARATOR = ", ";
+const MORE_INDICATOR = "...";
 const TRUNCATION_DELAY_IN_MS = 150;
 
-const concatenateNames = (recipients: Recipient[]): string => (recipients.join(EMAIL_SEPARATOR));
+// --------------------------------------
+// Helpers
+// --------------------------------------
+const concatenateEmails = (emails: string[]): string =>
+    emails.join(EMAIL_SEPARATOR);
 
-const formatRecipients = (recipients: Recipient[], truncationCount: number): string => {
-    const needTruncate = truncationCount > 0 && recipients.length > truncationCount;
-    const recipientsList = needTruncate ? recipients.slice(0, recipients.length - truncationCount) : recipients;
-    return concatenateNames(recipientsList) + (needTruncate ? EMAIL_SEPARATOR + MORE_INDICATOR : '');
+const formatRecipients = (recipients: string[], truncCount: number): string => {
+    const shouldTruncate = truncCount > 0 && recipients.length > truncCount;
+
+    const visible = shouldTruncate
+        ? recipients.slice(0, recipients.length - truncCount)
+        : recipients;
+
+    return (
+        concatenateEmails(visible) +
+        (shouldTruncate ? EMAIL_SEPARATOR + MORE_INDICATOR : "")
+    );
 };
 
 type Widths = {
-    cellWidth: number,
-    recipientWidth: number,
-    badgeWidth: number
+    cellWidth: number;
+    recipientWidth: number;
+    badgeWidth: number;
+};
+
+const exceedsWidth = (w: Widths, visibleCount: number) =>
+    w.recipientWidth + w.badgeWidth > w.cellWidth && visibleCount > 1;
+
+const canUntruncate = (
+    currentWidth: number,
+    lastWidth: number,
+    truncatedCount: number
+) => currentWidth > lastWidth && truncatedCount > 0;
+
+// --------------------------------------
+// Component
+// --------------------------------------
+interface RecipientsDisplayProps {
+    recipients: string[];
 }
-const hasExceededCellWidth = ({recipientWidth, badgeWidth, cellWidth}: Widths, numVisible: number): boolean =>
-    recipientWidth + badgeWidth > cellWidth && numVisible > 1;
 
-const hasDecreasedCellWidth = (cellWidth: number, lastWidth: number, numTruncated: number): boolean =>
-    cellWidth > lastWidth && numTruncated >= 1;
+const RecipientsDisplay: FC<RecipientsDisplayProps> = ({
+                                                           recipients,
+                                                       }): ReactElement => {
+    const [numTruncated, setNumTruncated] = useState(0);
+    const [lastWidth, setLastWidth] = useState(0);
 
+    const { isTooltipVisible, displayTooltip, removeTooltip } = useTooltip();
 
-const RecipientsDisplay: FC<RecipientsDisplayProps> = ({recipients}): ReactElement => {
-    const [numTruncatedRecipients, setNumTruncatedRecipients] = useState<number>(0);
-    const [lastKnownCellWidth, setLastKnownCellWidth] = useState<number>(0);
+    const cellRef = useRef<HTMLDivElement>(null);
+    const namesRef = useRef<HTMLSpanElement>(null);
+    const badgeRef = useRef<HTMLSpanElement>(null);
 
-    const {isTooltipVisible, displayTooltip, removeTooltip} = useTooltip();
+    const visibleCount = recipients.length - numTruncated;
 
-    const cellRef = useRef<HTMLDivElement | null>(null);
-    const recipientRef = useRef<HTMLSpanElement | null>(null);
-    const badgeRef = useRef<HTMLSpanElement | null>(null);
+    const formatted = useMemo(
+        () => formatRecipients(recipients, numTruncated),
+        [recipients, numTruncated]
+    );
 
-    const formattedRecipients = useMemo(() => formatRecipients(recipients, numTruncatedRecipients), [recipients, numTruncatedRecipients]);
-    const numVisibleRecipients = recipients.length - numTruncatedRecipients;
+    const handleTruncation = useCallback(
+        (w: Widths) => {
+            if (exceedsWidth(w, visibleCount)) {
+                setNumTruncated((prev) => prev + 1);
+                setLastWidth(w.cellWidth);
+            } else if (canUntruncate(w.cellWidth, lastWidth, numTruncated)) {
+                setNumTruncated((prev) => Math.max(prev - 1, 0));
+            }
+        },
+        [visibleCount, lastWidth, numTruncated]
+    );
 
-    const handleTruncation = useCallback((
-        widths: Widths
-    ) => {
-        if (hasExceededCellWidth(widths, numVisibleRecipients)) {
-            setNumTruncatedRecipients((prev) => prev + 1);
-            setLastKnownCellWidth(widths.cellWidth);
-        } else if (hasDecreasedCellWidth(widths.cellWidth, lastKnownCellWidth, numTruncatedRecipients)) {
-            setNumTruncatedRecipients((prev) => prev - 1);
-        }
-    }, [lastKnownCellWidth, numTruncatedRecipients, numVisibleRecipients]);
-
-    const isFirstRender = useRef(true);
+    const firstRender = useRef(true);
 
     useEffect(() => {
-        const delay = isFirstRender.current ? 0 : TRUNCATION_DELAY_IN_MS;
+        const delay = firstRender.current ? 0 : TRUNCATION_DELAY_IN_MS;
 
         const handleResize = debounce(() => {
-            if (cellRef.current && recipientRef.current) {
-                const sizes = {
-                    cellWidth: cellRef.current.offsetWidth,
-                    recipientWidth: recipientRef.current.offsetWidth,
-                    badgeWidth: badgeRef.current?.offsetWidth || 0
-                }
+            if (!cellRef.current || !namesRef.current) return;
 
-                handleTruncation(sizes);
-            }
+            const widths: Widths = {
+                cellWidth: cellRef.current.offsetWidth,
+                recipientWidth: namesRef.current.offsetWidth,
+                badgeWidth: badgeRef.current?.offsetWidth ?? 0,
+            };
+
+            handleTruncation(widths);
         }, delay);
 
         window.addEventListener("resize", handleResize);
-        handleResize();
+        handleResize(); // execute immediately on mount
 
-        isFirstRender.current = false;
+        firstRender.current = false;
 
         return () => window.removeEventListener("resize", handleResize);
-    }, [formattedRecipients, handleTruncation]);
+    }, [formatted, handleTruncation]);
 
     return (
         <div ref={cellRef}>
             <RecipientLayout>
-                <span ref={recipientRef} style={numVisibleRecipients === 1 ? {
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap"
-                } : {}}>
-                    {formattedRecipients}&ensp;
-                </span>
-                {numTruncatedRecipients > 0 &&
-                    <span ref={badgeRef} onMouseEnter={displayTooltip} onMouseLeave={removeTooltip}
-                          style={{cursor: "help"}}>
-                        <RecipientsBadge numTruncated={numTruncatedRecipients}/>
-                    </span>
-                }
+        <span
+            ref={namesRef}
+            style={
+                visibleCount === 1
+                    ? {
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                    }
+                    : {}
+            }
+        >
+          {formatted}&ensp;
+        </span>
+
+                {numTruncated > 0 && (
+                    <span
+                        ref={badgeRef}
+                        onMouseEnter={displayTooltip}
+                        onMouseLeave={removeTooltip}
+                        style={{ cursor: "help" }}
+                    >
+            <RecipientsBadge numTruncated={numTruncated} />
+          </span>
+                )}
             </RecipientLayout>
+
             <RecipientsTooltip isVisible={isTooltipVisible} onHide={removeTooltip}>
-                {concatenateNames(recipients)}
+                {concatenateEmails(recipients)}
             </RecipientsTooltip>
         </div>
     );

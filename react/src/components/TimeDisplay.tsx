@@ -1,15 +1,26 @@
+import { FC, useMemo } from "react";
+
 export interface TimeDisplayProps {
-  datetime: string
+    datetime: string;
 }
 
-const options: Intl.DateTimeFormatOptions = Object.freeze({
-  hour: '2-digit',
-  minute: '2-digit',
-})
+const OPTIONS: Intl.DateTimeFormatOptions = Object.freeze({
+    hour: "2-digit",
+    minute: "2-digit",
+});
 
-export default function TimeDisplay({ datetime }: TimeDisplayProps) {
-  const datetimeObject = new Date(datetime)
-  const time = datetimeObject.toLocaleTimeString('en-US-u-hc-h23', options)
+const TimeDisplay: FC<TimeDisplayProps> = ({ datetime }) => {
+    const formattedTime = useMemo(() => {
+        const dateObj = new Date(datetime);
 
-  return <span>{time}</span>
-}
+        if (isNaN(dateObj.getTime())) {
+            return "--:--"; // fallback for invalid datetime
+        }
+
+        return dateObj.toLocaleTimeString("en-US-u-hc-h23", OPTIONS);
+    }, [datetime]);
+
+    return <span aria-label={`Time: ${formattedTime}`}>{formattedTime}</span>;
+};
+
+export default TimeDisplay;
