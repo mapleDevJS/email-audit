@@ -13,7 +13,7 @@
     "node": "20.13.1"
   },
   "dependencies": {
-    "lodash-es": "^4.17.21",
+    "lodash-es": "^4.17.23",
     "reactstrap": "^9.2.2",
     "styled-components": "^6.1.1"
   },
